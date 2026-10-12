@@ -1,0 +1,1404 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gemma en acción</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap">
+<style>
+/* Layout: placa de circuito. Arriba, la "pista" de cobre del pipeline; abajo, dos mundos lado a lado
+   (chat real a la izquierda, código fuente que lo ejecuta a la derecha, con anotaciones incrustadas). */
+:root {
+  --bg: #e3e9e2;          /* máscara de soldadura, versión clara */
+  --surface: #f3f6f1;
+  --surface-2: #e9efe7;
+  --code-bg: #f8faf6;
+  --ink: #12261e;
+  --muted: #4b6056;
+  --line: #c2cec4;
+  --copper: #8f5410;      /* cobre: acento con contraste sobre claro */
+  --copper-soft: rgba(176, 108, 28, .16);
+  --copper-glow: #d48b2c;
+  --signal: #0b6f67;      /* datos en vivo */
+  --signal-soft: rgba(11, 111, 103, .12);
+  --danger: #a3262a;
+  --danger-soft: rgba(163, 38, 42, .1);
+  --ok: #2d7a3a;
+  --focus: #0b6f67;
+  --user-bg: #13261e;
+  --user-ink: #eef3ea;
+  --chip-ink: #1b1206;
+  /* sintaxis */
+  --s-kw: #7a3f8f;
+  --s-str: #2d6a35;
+  --s-num: #9a4d12;
+  --s-com: #6c7d73;
+  --s-fn: #1f5b8f;
+  --s-type: #8f5410;
+  --s-prop: #24423a;
+  --s-ui: #a07a3c;
+
+  --f-display: "Bricolage Grotesque", "Avenir Next Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-ui: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-prose: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --f-code: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --r-panel: 12px;
+  --r-ctl: 7px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1a15; --surface: #12231c; --surface-2: #172b23; --code-bg: #0a1511;
+    --ink: #e2eadf; --muted: #93a89c; --line: #263b31;
+    --copper: #e3a650; --copper-soft: rgba(227, 166, 80, .14); --copper-glow: #f0b45e;
+    --signal: #55c8b9; --signal-soft: rgba(85, 200, 185, .12);
+    --danger: #ff8a80; --danger-soft: rgba(255, 138, 128, .1); --ok: #7fd18b; --focus: #55c8b9;
+    --user-bg: #e2eadf; --user-ink: #10201a;
+    --s-kw: #d6a3e8; --s-str: #9fd69a; --s-num: #f2b36b; --s-com: #6f857a; --s-fn: #8cc4f2;
+    --s-type: #f0c27a; --s-prop: #c9d8cf; --s-ui: #b39565;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0d1a15; --surface: #12231c; --surface-2: #172b23; --code-bg: #0a1511;
+  --ink: #e2eadf; --muted: #93a89c; --line: #263b31;
+  --copper: #e3a650; --copper-soft: rgba(227, 166, 80, .14); --copper-glow: #f0b45e;
+  --signal: #55c8b9; --signal-soft: rgba(85, 200, 185, .12);
+  --danger: #ff8a80; --danger-soft: rgba(255, 138, 128, .1); --ok: #7fd18b; --focus: #55c8b9;
+  --user-bg: #e2eadf; --user-ink: #10201a;
+  --s-kw: #d6a3e8; --s-str: #9fd69a; --s-num: #f2b36b; --s-com: #6f857a; --s-fn: #8cc4f2;
+  --s-type: #f0c27a; --s-prop: #c9d8cf; --s-ui: #b39565;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+code, kbd { font-family: var(--f-code); font-size: .86em; }
+
+.app {
+  min-height: 100%;
+  max-width: 1640px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- cabecera ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 8px 20px; }
+.brand { min-width: 0; }
+.brand h1 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-variation-settings: "wdth" 78;
+  font-weight: 780;
+  font-size: clamp(1.9rem, 1.2rem + 2.4vw, 2.9rem);
+  line-height: .95;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.brand p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.top-actions { display: flex; gap: 8px; align-items: center; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 6px 14px;
+  border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--surface); color: var(--ink); cursor: pointer;
+  font-weight: 560; font-size: .92rem;
+}
+.btn:hover:not(:disabled) { border-color: var(--copper); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--copper); border-color: var(--copper); color: var(--surface); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.ghost { background: transparent; }
+.btn.small { min-height: 30px; padding: 3px 10px; font-size: .84rem; }
+.btn.danger { color: var(--danger); border-color: var(--danger); background: transparent; }
+
+/* ---------- pipeline ---------- */
+.board { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: stretch; }
+.pipeline {
+  position: relative; min-width: 0;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel);
+  padding: 12px 10px 10px;
+  overflow: hidden;
+}
+.pipe { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); position: relative; }
+.pipe::before {
+  content: ""; position: absolute; left: calc(100% / 12); right: calc(100% / 12); top: 11px; height: 3px;
+  background: repeating-linear-gradient(90deg, var(--copper-soft) 0 10px, transparent 10px 14px);
+  border-radius: 2px;
+}
+.node { position: relative; display: grid; justify-items: center; text-align: center; gap: 2px; min-width: 0; padding-inline: 2px; }
+.pad {
+  width: 25px; height: 25px; border-radius: 6px;
+  background: var(--surface-2); border: 2px solid var(--line);
+  display: grid; place-items: center; position: relative; z-index: 1;
+  transition: background .3s, border-color .3s, box-shadow .3s;
+}
+.pad::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line); transition: background .3s; }
+.node b { font-weight: 650; font-size: .86rem; line-height: 1.15; margin-top: 4px; }
+.node .abbr { display: none; }
+.node small { color: var(--muted); font-size: .76rem; line-height: 1.2; }
+.node.on .pad { border-color: var(--copper-glow); background: var(--copper-soft); box-shadow: 0 0 0 4px var(--copper-soft), 0 0 18px var(--copper-soft); }
+.node.on .pad::after { background: var(--copper-glow); }
+.node.on b { color: var(--copper); }
+.node.pulse .pad { animation: pulse .5s ease-out; }
+@keyframes pulse { from { box-shadow: 0 0 0 8px var(--copper-soft); } to { box-shadow: 0 0 0 0 transparent; } }
+.chip {
+  position: absolute; left: 0; top: 2px; z-index: 2; pointer-events: none;
+  font: 600 .72rem/1 var(--f-code); white-space: pre;
+  padding: 4px 6px; border-radius: 5px;
+  background: var(--copper-glow); color: var(--chip-ink);
+  max-width: 9ch; overflow: hidden; text-overflow: ellipsis;
+}
+
+.metrics {
+  display: grid; grid-template-columns: repeat(2, minmax(0, auto)); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: var(--r-panel);
+  overflow: hidden; align-content: stretch;
+}
+.metric { padding: 8px 14px; background: var(--surface); min-width: 0; display: grid; align-content: center; }
+.metric span { display: block; color: var(--muted); font-size: .76rem; line-height: 1.2; }
+.metric output { display: block; font: 600 1.05rem/1.3 var(--f-code); font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
+.metric output.is-live { color: var(--signal); }
+
+/* ---------- pestañas móviles ---------- */
+.tabs { display: none; }
+
+/* ---------- paneles ---------- */
+main { flex: 1 1 0; display: grid; grid-template-columns: minmax(330px, .82fr) minmax(0, 1.3fr); gap: 12px; min-height: 0; }
+.panel {
+  min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-panel);
+  overflow: hidden;
+}
+.panel-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.panel-head h2 { margin: 0; font-size: 1rem; font-weight: 700; font-variation-settings: "wdth" 85; }
+.spacer { flex: 1; }
+
+.status {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: .82rem; padding: 3px 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--muted); border: 1px solid var(--line);
+}
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status[data-s="ready"] { color: var(--ok); }
+.status[data-s="ready"]::before { background: var(--ok); }
+.status[data-s="loading"], .status[data-s="generating"] { color: var(--copper); }
+.status[data-s="loading"]::before, .status[data-s="generating"]::before { background: var(--copper-glow); animation: blink 1s infinite; }
+.status[data-s="error"], .status[data-s="nogpu"] { color: var(--danger); }
+.status[data-s="error"]::before, .status[data-s="nogpu"]::before { background: var(--danger); }
+@keyframes blink { 50% { opacity: .3; } }
+
+/* chat */
+.log { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; scroll-behavior: smooth; }
+.intro { display: grid; gap: 12px; }
+.loadcard { border: 1px dashed var(--copper); border-radius: 10px; padding: 14px; background: var(--copper-soft); display: grid; gap: 10px; }
+.loadcard h3 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.loadcard p { margin: 0; color: var(--muted); font-size: .9rem; max-width: 60ch; }
+.loadcard .warn { color: var(--ink); }
+.bar { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--copper-glow); transition: width .25s; }
+.loadmeta { font: .8rem/1.4 var(--f-code); color: var(--muted); font-variant-numeric: tabular-nums; }
+.suggest { display: flex; flex-wrap: wrap; gap: 8px; }
+.suggest button {
+  border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px; font-size: .86rem; cursor: pointer; text-align: left;
+}
+.suggest button:hover:not(:disabled) { border-color: var(--copper); }
+.suggest button:disabled { opacity: .55; cursor: not-allowed; }
+.suggest-label { font-size: .82rem; color: var(--muted); margin: 0; }
+
+.msg { max-width: 92%; display: grid; gap: 4px; }
+.msg .bubble { padding: 9px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; }
+.msg.user { align-self: flex-end; }
+.msg.user .bubble { background: var(--user-bg); color: var(--user-ink); border-bottom-right-radius: 4px; }
+.msg.bot { align-self: flex-start; }
+.msg.bot .bubble { background: var(--surface-2); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.msg.bot.streaming .bubble::after { content: "▍"; color: var(--copper); animation: blink .9s infinite; }
+.msg.failed .bubble { opacity: .55; }
+.msg .meta { font: .74rem/1.3 var(--f-code); color: var(--muted); font-variant-numeric: tabular-nums; }
+.msg.user .meta { text-align: right; }
+
+.errorbox {
+  margin: 0 14px 10px; padding: 10px 12px; border-radius: 8px;
+  background: var(--danger-soft); border: 1px solid var(--danger); color: var(--ink);
+  display: grid; gap: 8px; font-size: .9rem;
+}
+.errorbox strong { color: var(--danger); }
+.errorbox details { font: .76rem/1.4 var(--f-code); color: var(--muted); overflow-wrap: anywhere; }
+
+.composer { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: grid; gap: 8px; }
+.composer-row { display: flex; gap: 8px; align-items: flex-end; }
+.composer textarea {
+  flex: 1; min-width: 0; resize: none; min-height: 44px; max-height: 160px;
+  padding: 10px 12px; border-radius: 9px; border: 1px solid var(--line);
+  background: var(--code-bg); line-height: 1.4;
+}
+.composer textarea:disabled { opacity: .6; }
+.composer-opts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: .82rem; color: var(--muted); }
+.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.check input { accent-color: var(--copper); width: 15px; height: 15px; margin: 0; }
+
+/* código */
+.tourbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.steps-wrap { overflow-x: auto; border-bottom: 1px solid var(--line); scrollbar-width: thin; }
+.steps { list-style: none; margin: 0; padding: 8px 10px; display: flex; gap: 4px; width: max-content; }
+.steps button {
+  display: grid; grid-template-columns: auto auto; align-items: center; gap: 7px;
+  border: 1px solid transparent; background: transparent; border-radius: 8px;
+  padding: 5px 10px 5px 6px; cursor: pointer; font-size: .84rem; color: var(--muted); white-space: nowrap;
+}
+.steps button .n {
+  width: 22px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+  font: 600 .74rem/1 var(--f-code); border: 1.5px solid var(--line); color: var(--muted);
+  position: relative;
+}
+.steps button:hover { color: var(--ink); }
+.steps button[aria-current="step"] { color: var(--ink); background: var(--copper-soft); border-color: var(--copper); font-weight: 650; }
+.steps button[aria-current="step"] .n { border-color: var(--copper); color: var(--copper); }
+.steps button.running .n::after {
+  content: ""; position: absolute; top: -4px; right: -4px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--signal); box-shadow: 0 0 0 2px var(--surface);
+}
+.steps button.visited .n { border-style: solid; }
+.counter { font-size: .82rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.codeview { flex: 1; min-height: 0; overflow-y: auto; background: var(--code-bg); position: relative; padding-block: 10px 40px; }
+.code { font: 13px/1.62 var(--f-code); font-variant-ligatures: none; }
+.line { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); transition: opacity .25s, background .25s; cursor: default; }
+.line .ln { text-align: right; padding-right: 12px; color: var(--s-com); user-select: none; border-right: 2px solid transparent; font-variant-numeric: tabular-nums; }
+.line .lc { padding-left: 12px; padding-right: 14px; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.line.dim { opacity: .34; }
+.line.dim[data-step] { cursor: pointer; }
+.line.dim[data-step]:hover { opacity: .6; }
+.line.on { background: var(--copper-soft); }
+.line.on .ln { border-right-color: var(--copper); color: var(--copper); }
+.line.marker .lc { color: var(--copper); font-weight: 600; }
+.t-kw { color: var(--s-kw); } .t-str { color: var(--s-str); } .t-num { color: var(--s-num); }
+.t-com { color: var(--s-com); font-style: italic; } .t-fn { color: var(--s-fn); } .t-type { color: var(--s-type); font-weight: 600; }
+.t-prop { color: var(--s-prop); } .t-ui { color: var(--s-ui); } .t-p { color: var(--muted); }
+
+.annot {
+  margin: 10px 14px 14px calc(3.4em + 4px);
+  border: 1px solid var(--copper); border-radius: 10px;
+  background: var(--surface); box-shadow: 0 10px 30px -18px rgba(10, 30, 20, .45);
+  overflow: hidden;
+  font-family: var(--f-ui);
+}
+.annot-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 12px 16px 0; }
+.annot-head .kicker { font: 600 .78rem/1 var(--f-code); color: var(--copper); }
+.annot-head h3 { margin: 0; font-size: 1.15rem; font-weight: 720; font-variation-settings: "wdth" 85; text-wrap: balance; }
+.annot-body { padding: 6px 16px 12px; font: 1.02rem/1.6 var(--f-prose); max-width: 70ch; }
+.annot-body p { margin: 8px 0 0; }
+.annot-body code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: .8em; }
+.annot-nav { display: flex; gap: 8px; padding: 0 16px 12px; flex-wrap: wrap; }
+.live { border-top: 1px dashed var(--line); background: var(--signal-soft); padding: 10px 16px 14px; }
+.live-title { display: flex; align-items: center; gap: 7px; font-size: .8rem; font-weight: 650; color: var(--signal); margin-bottom: 8px; }
+.live-title::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); }
+.live-empty { color: var(--muted); font-size: .88rem; margin: 0; }
+.kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; margin: 0; font-size: .88rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--f-code); font-size: .82rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.files { display: grid; gap: 6px; margin-top: 10px; max-height: 260px; overflow-y: auto; }
+.file { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; font: .76rem/1.3 var(--f-code); font-variant-numeric: tabular-nums; }
+.file .name { overflow-wrap: anywhere; }
+.file .num { color: var(--muted); white-space: nowrap; }
+.file .bar { grid-column: 1 / -1; height: 5px; }
+.file.done .bar i { background: var(--signal); }
+.promptbox {
+  margin: 8px 0 0; padding: 10px 12px; max-height: 240px; overflow: auto;
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+  font: 12.5px/1.55 var(--f-code); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.ctl { background: var(--copper-soft); color: var(--copper); border-radius: 4px; padding: 0 3px; font-weight: 600; }
+.nl { color: var(--s-com); }
+.toks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.tok { display: inline-grid; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); padding: 2px 6px; font: .72rem/1.25 var(--f-code); }
+.tok b { font-weight: 600; white-space: pre; }
+.tok span { color: var(--muted); font-size: .66rem; }
+.tok.special { border-color: var(--copper); }
+.tok.special b { color: var(--copper); }
+.note { margin: 8px 0 0; font-size: .82rem; color: var(--muted); max-width: 64ch; }
+
+.legend { border-top: 1px solid var(--line); padding: 7px 14px; font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.legend code { color: var(--s-ui); }
+
+.foot { color: var(--muted); font-size: .8rem; text-align: center; padding-bottom: 4px; }
+
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: .84rem; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { width: 34px; height: 20px; border-radius: 10px; background: var(--line); position: relative; transition: background .2s; flex: none; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform .2s; }
+.switch input:checked + .track { background: var(--signal); }
+.switch input:checked + .track::after { transform: translateX(14px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (min-width: 821px) {
+  .app { height: 100%; }
+  .metrics { grid-template-columns: repeat(2, minmax(118px, auto)); }
+  main { min-height: 460px; }
+}
+@media (min-width: 1180px) {
+  .metrics { grid-template-columns: repeat(4, minmax(112px, auto)); }
+}
+@media (max-width: 820px) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric { padding: 7px 12px; }
+  .metric output { font-size: .95rem; }
+  .tabs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  }
+  .tabs button { border: 0; background: transparent; border-radius: 7px; padding: 8px; font-weight: 650; cursor: pointer; color: var(--muted); position: relative; }
+  .tabs button[aria-selected="true"] { background: var(--copper-soft); color: var(--ink); }
+  .tabs button .badge { position: absolute; top: 7px; margin-left: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--signal); }
+  main { flex: none; grid-template-columns: minmax(0, 1fr); }
+  .tourbar { flex-wrap: nowrap; }
+  .tourbar h2, .tourbar .lbl, .tourbar .counter { display: none; }
+  .tourbar .switch { font-size: .8rem; }
+  .node .full { display: none; }
+  .node .abbr { display: inline; }
+  .brand p { font-size: .92rem; }
+  main[data-view="chat"] #code-panel, main[data-view="code"] #chat-panel { display: none; }
+  #chat-panel .log { min-height: 52vh; max-height: 64vh; }
+  .codeview { max-height: 74vh; min-height: 52vh; }
+  .code { font-size: 12px; }
+  .line { grid-template-columns: 2.6em minmax(0, 1fr); }
+  .line .ln { padding-right: 8px; }
+  .line .lc { padding-left: 8px; padding-right: 10px; }
+  .annot { margin: 10px 8px 12px; }
+  .annot-body { font-size: .98rem; }
+  .node small { display: none; }
+  .node b { font-size: .74rem; overflow-wrap: normal; }
+  .msg { max-width: 96%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Gemma en acción</h1>
+      <p>Un chatbot que corre Gemma 4 en tu propia GPU, con el código que lo mueve abierto al lado. Recorre los pasos o deja que la ejecución te lleve.</p>
+    </div>
+    <div class="top-actions">
+      <button class="btn small ghost" id="theme-btn" type="button" aria-label="Cambiar tema">Tema: sistema</button>
+    </div>
+  </header>
+
+  <section class="board" aria-label="Pipeline de inferencia y métricas">
+    <div class="pipeline" id="pipeline">
+      <ol class="pipe" aria-label="Etapas del pipeline">
+        <li class="node" data-node="js"><span class="pad"></span><b><span class="full">Tu página</span><span class="abbr">Página</span></b><small>JavaScript</small></li>
+        <li class="node" data-node="proc"><span class="pad"></span><b><span class="full">Processor</span><span class="abbr">Proc.</span></b><small>tokenizer y plantilla</small></li>
+        <li class="node" data-node="ort"><span class="pad"></span><b><span class="full">ONNX Runtime</span><span class="abbr">ONNX</span></b><small>ejecuta el grafo</small></li>
+        <li class="node" data-node="gpu"><span class="pad"></span><b>WebGPU</b><small>tu GPU y su VRAM</small></li>
+        <li class="node" data-node="tok"><span class="pad"></span><b>Tokens</b><small>ids a texto</small></li>
+        <li class="node" data-node="dom"><span class="pad"></span><b>DOM</b><small>el globo del chat</small></li>
+      </ol>
+    </div>
+    <div class="metrics" aria-label="Métricas de la última respuesta">
+      <div class="metric"><span>Tokens de entrada</span><output id="m-in">—</output></div>
+      <div class="metric"><span>Primer token</span><output id="m-ttft">—</output></div>
+      <div class="metric"><span>Tokens generados</span><output id="m-out">—</output></div>
+      <div class="metric"><span>Velocidad</span><output id="m-tps">—</output></div>
+    </div>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Vista">
+    <button type="button" role="tab" id="tab-chat" aria-selected="true" aria-controls="chat-panel">Chat</button>
+    <button type="button" role="tab" id="tab-code" aria-selected="false" aria-controls="code-panel">Código<span class="badge" id="code-badge" hidden></span></button>
+  </div>
+
+  <main id="main" data-view="chat">
+    <section class="panel" id="chat-panel" aria-label="Chat con Gemma">
+      <div class="panel-head">
+        <h2>Chat</h2>
+        <span class="status" id="status" data-s="boot">Preparando el motor…</span>
+        <span class="spacer"></span>
+        <button class="btn small ghost" id="clear-btn" type="button" disabled>Limpiar conversación</button>
+      </div>
+
+      <div class="log" id="log" aria-live="polite" aria-relevant="additions text">
+        <div class="intro" id="intro">
+          <div class="loadcard" id="loadcard">
+            <h3>Primero, el modelo</h3>
+            <p class="warn">La primera carga descarga varios gigabytes de pesos y puede tardar varios minutos según tu conexión. El navegador los guarda en caché, así que la próxima vez arranca mucho más rápido.</p>
+            <p id="gpu-note">Comprobando si tu navegador tiene WebGPU…</p>
+            <div><button class="btn primary" id="load-btn" type="button" disabled>Cargar modelo</button></div>
+            <div id="load-progress" hidden>
+              <div class="bar" role="progressbar" aria-label="Progreso de descarga" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="load-bar"><i></i></div>
+              <p class="loadmeta" id="load-meta">Esperando el primer archivo…</p>
+            </div>
+          </div>
+          <p class="suggest-label">Prueba con:</p>
+          <div class="suggest" id="suggest">
+            <button type="button" disabled>Explícame qué es una GPU como si tuviera 12 años</button>
+            <button type="button" disabled>¿Qué diferencia hay entre RAM y VRAM?</button>
+            <button type="button" disabled>Dame 3 nombres para una cafetería en Barranco</button>
+            <button type="button" disabled>Escribe un haiku sobre la garúa de Lima</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="errorbox" id="errorbox" role="alert" hidden>
+        <div><strong id="err-title">Algo falló</strong> <span id="err-text"></span></div>
+        <details><summary>Detalle técnico</summary><span id="err-detail"></span></details>
+        <div><button class="btn small" id="retry-btn" type="button">Reintentar</button></div>
+      </div>
+
+      <form class="composer" id="composer">
+        <div class="composer-row">
+          <label class="sr" for="prompt-input">Tu mensaje</label>
+          <textarea id="prompt-input" rows="1" placeholder="Carga el modelo para empezar" disabled></textarea>
+          <button class="btn primary" id="send-btn" type="submit" disabled>Enviar</button>
+          <button class="btn danger" id="stop-btn" type="button" hidden>Detener</button>
+        </div>
+        <div class="composer-opts">
+          <label class="check"><input type="checkbox" id="sample"> Muestreo (temperatura 0.7, top-k 50)</label>
+          <span><kbd>Enter</kbd> envía · <kbd>Shift</kbd>+<kbd>Enter</kbd> salto de línea</span>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" id="code-panel" aria-label="Código fuente y recorrido">
+      <div class="panel-head tourbar">
+        <h2>El código que corre</h2>
+        <span class="counter" id="counter">Paso 1 de 9</span>
+        <span class="spacer"></span>
+        <label class="switch"><input type="checkbox" id="follow" checked><span class="track" aria-hidden="true"></span>Seguir la ejecución</label>
+        <button class="btn small" id="prev-btn" type="button" aria-label="Paso anterior">‹<span class="lbl"> Anterior</span></button>
+        <button class="btn small" id="next-btn" type="button" aria-label="Paso siguiente"><span class="lbl">Siguiente </span>›</button>
+      </div>
+      <nav class="steps-wrap" aria-label="Pasos del recorrido">
+        <ol class="steps" id="steps"></ol>
+      </nav>
+      <div class="codeview" id="codeview" tabindex="0" aria-label="Código fuente del motor">
+        <div class="code" id="code"></div>
+      </div>
+      <div class="legend">
+        <span>Este es el texto literal del módulo que se ejecuta en esta página.</span>
+        <span><code>ui.*</code> son llamadas solo de interfaz: barras, globos y métricas.</span>
+        <span><kbd>←</kbd> <kbd>→</kbd> cambian de paso.</span>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Transformers.js (Hugging Face) · Gemma 4 (Google) · ONNX Runtime Web</footer>
+</div>
+
+<!-- ==================== Interfaz (se ejecuta primero) ==================== -->
+<script type="module">
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+};
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const narrow = matchMedia("(max-width: 820px)");
+const fmtBytes = (b) => {
+  if (!Number.isFinite(b) || b <= 0) return "0 MB";
+  if (b >= 1e9) return (b / 1e9).toFixed(2) + " GB";
+  return (b / 1e6).toFixed(1) + " MB";
+};
+const fmtMs = (ms) => ms >= 1000 ? (ms / 1000).toFixed(2) + " s" : Math.round(ms) + " ms";
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* sin almacenamiento: no pasa nada */ } },
+};
+
+/* ---------------- tema ---------------- */
+const THEMES = ["system", "light", "dark"];
+const THEME_LABEL = { system: "sistema", light: "claro", dark: "oscuro" };
+let theme = THEMES.includes(store.get("gea-theme")) ? store.get("gea-theme") : "system";
+function applyTheme() {
+  if (theme === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", theme);
+  $("#theme-btn").textContent = "Tema: " + THEME_LABEL[theme];
+}
+$("#theme-btn").addEventListener("click", () => {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  store.set("gea-theme", theme);
+  applyTheme();
+});
+applyTheme();
+
+/* ---------------- datos reales de la ejecución ---------------- */
+const D = {
+  engine: "pending", engineError: null,
+  gpu: { checked: false, ok: null, reason: "", vendor: "", arch: "", device: "", maxBuffer: 0 },
+  files: new Map(), loadStart: 0, loadEnd: 0, cacheBefore: null, procFiles: 0,
+  specials: [],
+  prompt: "", route: "", inputs: null, tokenizer: null,
+  tokens: 0, chunks: 0, lastChunk: "", tGen: 0, tFirst: 0, tLast: 0, stopReason: "", sample: false,
+  turns: 0, storage: null, phase: null,
+};
+
+/* ---------------- recorrido ---------------- */
+const STEPS = [
+  { id: "gpu", title: "¿Hay GPU?", short: "¿Hay GPU?", nodes: ["gpu"], body: [
+    "Antes de bajar un solo byte, la página pregunta si el navegador expone WebGPU con `navigator.gpu`. Si existe, pide un adaptador: la GPU concreta que se va a usar.",
+    "Sin adaptador no hay dónde ejecutar el modelo, así que el botón de carga se queda apagado y te lo decimos. WebGPU está disponible en Chrome y Edge desde la versión 113.",
+  ] },
+  { id: "imports", title: "Imports y MODEL_ID", short: "Imports", nodes: ["js"], body: [
+    "Todo el motor llega como un módulo ES desde un CDN. Transformers.js aporta el tokenizer, la plantilla de chat y el bucle de generación; por debajo usa ONNX Runtime Web para ejecutar el grafo del modelo.",
+    "`MODEL_ID` apunta al repositorio de Hugging Face con Gemma 4 ya exportado a ONNX. E2B es la variante compacta pensada para dispositivos (unos 2 mil millones de parámetros efectivos) y `it` significa que está afinada para seguir instrucciones.",
+    "`InterruptableStoppingCriteria` es lo que hace funcionar el botón Detener. La versión de la librería va fijada en la URL para que el demo no cambie solo.",
+  ] },
+  { id: "processor", title: "El procesador", short: "Procesador", nodes: ["js", "proc"], body: [
+    "`AutoProcessor` lee la configuración del repositorio y arma las piezas de entrada: el tokenizer, que traduce texto a números y de vuelta, y la plantilla de chat, un pequeño programa que sabe cómo Gemma espera ver una conversación.",
+    "Son archivos chicos (JSON y texto), por eso esta parte termina rápido. También se cargarían los procesadores de imagen y audio, pero este demo solo usa texto.",
+  ] },
+  { id: "model", title: "Cargar el modelo", short: "Modelo", nodes: ["ort", "gpu"], body: [
+    "Aquí está el peso pesado. `dtype: \"q4f16\"` pide pesos cuantizados a 4 bits con activaciones en fp16: menos descarga y menos memoria a cambio de un poco de precisión. `device: \"webgpu\"` le indica a ONNX Runtime Web que ejecute el grafo en la GPU.",
+    "El modelo viene partido en varios archivos .onnx que se descargan por separado; cada evento de `progress_callback` alimenta las barras de abajo. El navegador los guarda en Cache Storage, así que en la siguiente visita salen del disco y no de la red.",
+    "Al terminar, los pesos viven en buffers de la memoria de la GPU (VRAM). En JavaScript solo queda `model`, un objeto con las sesiones de ONNX Runtime que apuntan a esos buffers.",
+  ] },
+  { id: "template", title: "apply_chat_template", short: "Plantilla", nodes: ["proc"], body: [
+    "El modelo no entiende una lista de mensajes; entiende una sola tira de texto. `apply_chat_template` convierte el historial en ese texto e inserta los marcadores de control que separan los turnos de usuario y de modelo.",
+    "`add_generation_prompt: true` deja abierto el turno del modelo, así su siguiente token ya es el inicio de la respuesta. `enable_thinking: false` desactiva el modo de razonamiento extendido para que conteste directo.",
+    "El nuevo mensaje se añade a una copia del historial. El historial real solo cambia cuando la respuesta termina bien (paso 9).",
+  ] },
+  { id: "inputs", title: "De texto a tensores", short: "Tensores", nodes: ["proc", "ort"], body: [
+    "El procesador parte el prompt en tokens y devuelve tensores: `input_ids`, un número por token, y `attention_mask`, unos que marcan qué posiciones son reales. La forma es [1, n]: un lote con una sola conversación de n tokens.",
+    "`add_special_tokens: false` porque la plantilla ya puso sus marcadores; añadirlos otra vez los duplicaría. Imagen y audio van en `null` porque aquí solo hay texto.",
+    "Si esa llamada fallara, el plan B va directo a `processor.tokenizer`, que para texto produce los mismos dos tensores. Abajo ves qué ruta se usó de verdad.",
+  ] },
+  { id: "generate", title: "generate, token a token", short: "generate", nodes: ["ort", "gpu", "tok"], body: [
+    "Generar es un bucle. Primero el modelo procesa todo el prompt de una vez (prefill) y obtiene una probabilidad para cada token del vocabulario. Se elige uno, se agrega a la secuencia y se vuelve a ejecutar, ahora con un solo token de entrada.",
+    "Eso es posible gracias al KV cache: las claves y valores de atención de los tokens anteriores se quedan en la GPU y se reutilizan, así cada paso no recalcula la conversación entera. Por eso el primer token tarda más que los siguientes.",
+    "Con `do_sample: false` siempre gana el token más probable (búsqueda voraz): mismo prompt, misma respuesta. Si activas el muestreo, se sortea entre los 50 más probables con temperatura 0.7.",
+    "El bucle para con el token de fin de turno, al llegar a 512 tokens nuevos o cuando `stopper.interrupt()` levanta la bandera. Por simplicidad del demo, el KV cache se descarta al final y cada turno vuelve a procesar el historial completo.",
+  ] },
+  { id: "streamer", title: "El TextStreamer", short: "Streamer", nodes: ["tok", "dom"], body: [
+    "`generate` le pasa cada token nuevo al streamer. `token_callback_function` recibe los ids crudos (así contamos tokens exactos) y `callback_function` recibe texto ya decodificado.",
+    "El streamer junta tokens hasta formar palabras completas, por eso suele haber menos trozos de texto que tokens. `skip_prompt` evita repetir el prompt y `skip_special_tokens` oculta los marcadores de control.",
+    "En la página, cada trozo se añade al globo como nodo de texto. La salida del modelo nunca se interpreta como HTML.",
+  ] },
+  { id: "close", title: "Lo que queda en el navegador", short: "Cierre", nodes: ["js", "dom"], body: [
+    "Todo ocurrió en tu máquina: lo que escribes no se envía a ningún servidor. Lo único que viajó por la red fueron los archivos del modelo.",
+    "Los pesos quedan en la caché del navegador (se borran desde los datos del sitio) y el historial vive en el arreglo `messages`, que desaparece al recargar. Limpiar la conversación lo vacía.",
+    "Los límites son reales: necesitas una GPU con VRAM suficiente, la primera descarga es grande y el primer arranque tarda más porque la GPU prepara sus programas. Si la memoria no alcanza, verás un error y no una respuesta a medias.",
+  ] },
+];
+const stepIndex = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
+const PHASE_STEP = { processor: "processor", model: "model", ready: "model", template: "template", inputs: "inputs", generate: "generate", streamer: "streamer", done: "close" };
+const PHASE_NODES = { processor: ["js", "proc"], model: ["ort", "gpu"], template: ["proc"], inputs: ["proc", "ort"], generate: ["ort", "gpu"], streamer: ["gpu", "tok", "dom"] };
+
+let current = 0;
+let follow = store.get("gea-follow") !== "off";
+$("#follow").checked = follow;
+$("#follow").addEventListener("change", (e) => { follow = e.target.checked; store.set("gea-follow", follow ? "on" : "off"); });
+
+/* ---------------- resaltado de sintaxis propio ---------------- */
+const KW = new Set("import from const let var async await function return if else try catch throw new true false null of in for while typeof export default".split(" "));
+const escapeHTML = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function highlight(line) {
+  const re = /(\/\/.*$)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][\w$]*)|(\s+)|([^\s])/g;
+  let out = "", m, prev = "";
+  while ((m = re.exec(line))) {
+    const [tok, com, str, num, id, ws] = m;
+    const t = escapeHTML(tok);
+    if (com) out += `<span class="t-com">${t}</span>`;
+    else if (str) out += `<span class="t-str">${t}</span>`;
+    else if (num) out += `<span class="t-num">${t}</span>`;
+    else if (id) {
+      const next = line.slice(re.lastIndex).match(/^\s*(\S)/)?.[1];
+      let cls = "";
+      if (id === "ui") cls = "t-ui";
+      else if (KW.has(id)) cls = "t-kw";
+      else if (prev === "." && next === "(") cls = "t-fn";
+      else if (prev === ".") cls = "t-prop";
+      else if (next === "(") cls = "t-fn";
+      else if (/^[A-Z]/.test(id)) cls = "t-type";
+      out += cls ? `<span class="${cls}">${t}</span>` : t;
+    } else if (ws) out += t;
+    else out += `<span class="t-p">${t}</span>`;
+    if (!ws) prev = tok;
+  }
+  return out;
+}
+
+/* ---------------- render del código (fuente = el script que se ejecuta) ---------------- */
+function dedent(text) {
+  const lines = text.replace(/^\n+|\s+$/g, "").split("\n");
+  const ind = Math.min(...lines.filter((l) => l.trim()).map((l) => l.match(/^ */)[0].length));
+  return lines.map((l) => l.slice(ind));
+}
+const srcLines = dedent($("#engine").textContent);
+const regions = {};
+const lineRows = [];
+{
+  let cur = null;
+  const code = $("#code");
+  srcLines.forEach((ln, i) => {
+    const mk = ln.match(/^\s*\/\/ ▸ (?:paso (\d+)|interfaz)/);
+    if (mk) cur = mk[1] ? STEPS[+mk[1] - 1].id : null;
+    const row = el("div", "line");
+    row.dataset.i = i;
+    if (mk) row.classList.add("marker");
+    if (cur) {
+      row.dataset.step = cur;
+      const r = (regions[cur] ??= { first: i, last: i });
+      if (ln.trim()) r.last = i;
+    }
+    const n = el("span", "ln", String(i + 1));
+    n.setAttribute("aria-hidden", "true");
+    const c = el("span", "lc");
+    c.innerHTML = highlight(ln) || " ";
+    row.append(n, c);
+    code.append(row);
+    lineRows.push(row);
+  });
+  code.addEventListener("click", (e) => {
+    const row = e.target.closest(".line.dim[data-step]");
+    if (row) goStep(stepIndex[row.dataset.step], { scroll: false });
+  });
+}
+
+/* ---------------- stepper ---------------- */
+const stepBtns = STEPS.map((s, i) => {
+  const li = el("li");
+  const b = el("button");
+  b.type = "button";
+  b.dataset.i = i;
+  const n = el("span", "n", String(i + 1));
+  b.append(n, el("span", "", s.short));
+  b.setAttribute("aria-label", `Paso ${i + 1}: ${s.title}`);
+  b.addEventListener("click", () => goStep(i));
+  li.append(b);
+  $("#steps").append(li);
+  return b;
+});
+$("#prev-btn").addEventListener("click", () => goStep(Math.max(0, current - 1)));
+$("#next-btn").addEventListener("click", () => goStep(Math.min(STEPS.length - 1, current + 1)));
+document.addEventListener("keydown", (e) => {
+  if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (e.target.closest("textarea, input, select, [contenteditable]")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); goStep(Math.min(STEPS.length - 1, current + 1)); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); goStep(Math.max(0, current - 1)); }
+});
+
+const inlineCode = (text) => escapeHTML(text).replace(/`([^`]+)`/g, "<code>$1</code>");
+let annotEl = null;
+function goStep(i, { scroll = true } = {}) {
+  current = i;
+  const s = STEPS[i];
+  stepBtns.forEach((b, j) => {
+    if (j === i) { b.setAttribute("aria-current", "step"); b.classList.add("visited"); }
+    else b.removeAttribute("aria-current");
+  });
+  if (scroll) stepBtns[i].scrollIntoView({ block: "nearest", inline: "nearest", behavior: reduceMotion.matches ? "auto" : "smooth" });
+  $("#counter").textContent = `Paso ${i + 1} de ${STEPS.length}`;
+  $("#prev-btn").disabled = i === 0;
+  $("#next-btn").disabled = i === STEPS.length - 1;
+  const r = regions[s.id];
+  lineRows.forEach((row, j) => {
+    const on = r && j >= r.first && j <= r.last;
+    row.classList.toggle("on", !!on);
+    row.classList.toggle("dim", !on);
+  });
+  annotEl?.remove();
+  annotEl = buildAnnot(s, i);
+  const anchor = r ? lineRows[r.last] : lineRows.at(-1);
+  anchor.after(annotEl);
+  renderLive();
+  if (!busyPhase()) setNodes(s.nodes);
+  if (scroll && r) scrollCodeTo(r.first);
+}
+function scrollCodeTo(lineIdx) {
+  const cv = $("#codeview");
+  const row = lineRows[lineIdx];
+  if (!cv.offsetParent) return;
+  cv.scrollTo({ top: Math.max(0, row.offsetTop - 14), behavior: reduceMotion.matches ? "auto" : "smooth" });
+}
+function buildAnnot(s, i) {
+  const a = el("aside", "annot");
+  a.setAttribute("aria-label", `Explicación del paso ${i + 1}`);
+  const head = el("div", "annot-head");
+  head.append(el("span", "kicker", `paso ${i + 1}/${STEPS.length}`), el("h3", "", s.title));
+  const body = el("div", "annot-body");
+  body.innerHTML = s.body.map((p) => `<p>${inlineCode(p)}</p>`).join("");
+  const live = el("div", "live");
+  live.append(el("div", "live-title", "En vivo, de esta página"), el("div", "live-body"));
+  a.append(head, body, live);
+  return a;
+}
+
+/* ---------------- paneles "en vivo" por paso ---------------- */
+function kv(pairs) {
+  const dl = el("dl", "kv");
+  for (const [k, v] of pairs) dl.append(el("dt", "", k), el("dd", "", v));
+  return dl;
+}
+const emptyNote = (t) => el("p", "live-empty", t);
+const LIVE = {
+  gpu() {
+    const g = D.gpu;
+    if (!g.checked) return emptyNote(D.engine === "error" ? "El motor no llegó a cargarse, así que no se pudo comprobar la GPU." : "Comprobando…");
+    const rows = [["navigator.gpu", "gpu" in navigator && navigator.gpu ? "presente" : "ausente"], ["Adaptador", g.ok ? "encontrado" : "no disponible"]];
+    if (g.ok) {
+      if (g.vendor) rows.push(["Fabricante", g.vendor]);
+      if (g.arch) rows.push(["Arquitectura", g.arch]);
+      if (g.device) rows.push(["Dispositivo", g.device]);
+      if (g.maxBuffer) rows.push(["maxBufferSize", fmtBytes(g.maxBuffer)]);
+    } else rows.push(["Motivo", g.reason]);
+    const f = document.createDocumentFragment();
+    f.append(kv(rows));
+    if (g.ok && !g.vendor) f.append(el("p", "note", "El navegador no comparte el nombre de la GPU; es normal por privacidad."));
+    return f;
+  },
+  imports() {
+    return kv([
+      ["Módulo", D.engine === "ok" ? "importado y listo" : D.engine === "error" ? "falló la importación" : "descargando…"],
+      ["Versión fijada", "@huggingface/transformers 4.3.0"],
+      ["MODEL_ID", "onnx-community/gemma-4-E2B-it-ONNX"],
+    ]);
+  },
+  processor() {
+    if (!D.specials.length) return emptyNote("Cuando cargues el modelo verás aquí cuántos tokens especiales trae el tokenizer.");
+    const f = document.createDocumentFragment();
+    f.append(kv([["Archivos del procesador", String(D.procFiles)], ["Tokens especiales", String(D.specials.length)]]));
+    const toks = el("div", "toks");
+    D.specials.slice(0, 18).forEach((t) => { const c = el("span", "tok special"); c.append(el("b", "", t)); toks.append(c); });
+    f.append(toks);
+    if (D.specials.length > 18) f.append(el("p", "note", `Y ${D.specials.length - 18} más.`));
+    return f;
+  },
+  model() {
+    const files = [...D.files.values()].filter((x) => x.group === "model");
+    if (!files.length) return emptyNote(D.cacheBefore === true ? "Ya hay una caché de una visita anterior: la carga debería salir del disco." : "Pulsa «Cargar modelo» y aquí aparecerá cada archivo con su progreso real.");
+    const f = document.createDocumentFragment();
+    const loaded = files.reduce((a, x) => a + (x.loaded || 0), 0);
+    const total = files.reduce((a, x) => a + (x.total || 0), 0);
+    const el_ms = (D.loadEnd || performance.now()) - D.loadStart;
+    f.append(kv([
+      ["Archivos", `${files.filter((x) => x.status === "done").length} de ${files.length} listos`],
+      ["Bytes", `${fmtBytes(loaded)} de ${fmtBytes(total)} conocidos`],
+      ["Tiempo", fmtMs(el_ms) + (D.loadEnd ? "" : " y contando")],
+      ["Caché previa", D.cacheBefore == null ? "no se pudo consultar" : D.cacheBefore ? "sí, de una visita anterior" : "no, primera descarga"],
+    ]));
+    const list = el("div", "files");
+    files.forEach((x) => list.append(fileRow(x)));
+    f.append(list);
+    return f;
+  },
+  template() {
+    if (!D.prompt) return emptyNote("Envía un mensaje y verás el texto exacto que produjo apply_chat_template, con sus marcadores de control.");
+    const f = document.createDocumentFragment();
+    f.append(kv([["Caracteres", D.prompt.length.toLocaleString("es-PE")], ["Turnos en el historial", String(D.turns)]]));
+    f.append(renderPrompt(D.prompt));
+    return f;
+  },
+  inputs() {
+    if (!D.inputs) return emptyNote("Aquí aparecerán la forma real de input_ids y los primeros tokens del último mensaje.");
+    const { input_ids, attention_mask } = D.inputs;
+    const f = document.createDocumentFragment();
+    f.append(kv([
+      ["Ruta usada", D.route === "processor" ? "processor(prompt, null, null, …)" : "plan B: processor.tokenizer(prompt, …)"],
+      ["input_ids.dims", JSON.stringify(input_ids.dims)],
+      ["input_ids.type", String(input_ids.type ?? "—")],
+      ["attention_mask.dims", attention_mask ? JSON.stringify(attention_mask.dims) : "—"],
+    ]));
+    f.append(renderTokens(input_ids));
+    return f;
+  },
+  generate() {
+    if (!D.tGen) return emptyNote("Mide la generación de verdad: tiempo hasta el primer token, tokens y velocidad. Envía un mensaje para verlo.");
+    const rows = [
+      ["Contexto de entrada", `${D.inputs?.input_ids?.dims?.at(-1) ?? "—"} tokens`],
+      ["Primer token", D.tFirst ? fmtMs(D.tFirst - D.tGen) : "esperando el prefill…"],
+      ["Tokens generados", String(D.tokens)],
+      ["Velocidad", tpsText()],
+      ["Modo", D.sample ? "muestreo (temperatura 0.7, top-k 50)" : "voraz (do_sample: false)"],
+    ];
+    if (D.stopReason) rows.push(["Terminó por", D.stopReason]);
+    const f = document.createDocumentFragment();
+    f.append(kv(rows));
+    f.append(el("p", "note", "Los tokens se cuentan exactos con token_callback_function e incluyen el token de fin. La velocidad excluye el primer token, que carga con el prefill."));
+    return f;
+  },
+  streamer() {
+    if (!D.tGen) return emptyNote("Cuando el modelo responda, aquí verás cuántos tokens llegaron frente a cuántos trozos de texto y el último trozo tal cual.");
+    return kv([
+      ["Tokens recibidos", String(D.tokens)],
+      ["Trozos de texto", String(D.chunks)],
+      ["Último trozo", D.lastChunk ? JSON.stringify(D.lastChunk) : "—"],
+    ]);
+  },
+  close() {
+    const rows = [
+      ["Turnos guardados en messages", String(D.turns)],
+      ["Caché del modelo", D.loadEnd ? "en Cache Storage del navegador" : "todavía no descargado"],
+    ];
+    if (D.storage) rows.push(["Almacenamiento del sitio", `${fmtBytes(D.storage.usage)} usados de ${fmtBytes(D.storage.quota)} disponibles`]);
+    return kv(rows);
+  },
+};
+function fileRow(x) {
+  const row = el("div", "file" + (x.status === "done" ? " done" : ""));
+  const pct = x.total ? Math.min(100, (x.loaded / x.total) * 100) : x.status === "done" ? 100 : 0;
+  row.append(el("span", "name", x.file), el("span", "num", x.total ? `${fmtBytes(x.loaded)} / ${fmtBytes(x.total)}` : x.status === "done" ? "listo" : x.status));
+  const bar = el("div", "bar");
+  const i = el("i");
+  i.style.width = pct + "%";
+  bar.append(i);
+  row.append(bar);
+  return row;
+}
+function renderPrompt(prompt) {
+  const pre = el("pre", "promptbox");
+  const specials = [...D.specials].filter(Boolean).sort((a, b) => b.length - a.length)
+    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const re = new RegExp(specials.length ? `(${specials.join("|")}|\\n)` : "(<\\|?[A-Za-z_][\\w]*\\|?>|\\n)", "g");
+  // split con grupo de captura: índices impares = marcadores o saltos de línea
+  prompt.split(re).forEach((part, i) => {
+    if (!part) return;
+    if (i % 2 === 0) pre.append(part);
+    else if (part === "\n") pre.append(el("span", "nl", "↵"), "\n");
+    else pre.append(el("span", "ctl", part));
+  });
+  return pre;
+}
+function renderTokens(input_ids) {
+  const f = document.createDocumentFragment();
+  const data = input_ids.data ? Array.from(input_ids.data, Number) : [];
+  const shown = data.slice(0, 40);
+  const box = el("div", "toks");
+  const spec = new Set(D.specials);
+  shown.forEach((id) => {
+    let piece = "";
+    try { piece = D.tokenizer.decode([id]); } catch { piece = "?"; }
+    const c = el("span", "tok" + (spec.has(piece) ? " special" : ""));
+    c.append(el("b", "", piece.replace(/ /g, "␣").replace(/\n/g, "↵") || "∅"), el("span", "", String(id)));
+    box.append(c);
+  });
+  f.append(box);
+  if (data.length > shown.length) f.append(el("p", "note", `Primeros ${shown.length} de ${data.length} tokens. Cada chip muestra el trozo de texto y su id.`));
+  return f;
+}
+let liveQueued = false;
+function renderLive() {
+  if (liveQueued) return;
+  liveQueued = true;
+  requestAnimationFrame(() => {
+    liveQueued = false;
+    const body = annotEl?.querySelector(".live-body");
+    if (!body) return;
+    body.replaceChildren(LIVE[STEPS[current].id]());
+  });
+}
+
+/* ---------------- pipeline ---------------- */
+const nodeEls = Object.fromEntries([...document.querySelectorAll(".node")].map((n) => [n.dataset.node, n]));
+function setNodes(list) {
+  for (const [k, n] of Object.entries(nodeEls)) n.classList.toggle("on", list.includes(k));
+}
+const busyPhase = () => D.phase && D.phase !== "ready" && D.phase !== "done" && D.phase !== "idle";
+let lastChip = 0;
+function flyChip(text) {
+  const dom = nodeEls.dom;
+  if (reduceMotion.matches) {
+    dom.classList.remove("pulse"); void dom.offsetWidth; dom.classList.add("pulse");
+    return;
+  }
+  const now = performance.now();
+  if (now - lastChip < 80) return;
+  lastChip = now;
+  const pipe = $("#pipeline").getBoundingClientRect();
+  const a = nodeEls.gpu.querySelector(".pad").getBoundingClientRect();
+  const b = nodeEls.dom.querySelector(".pad").getBoundingClientRect();
+  const chip = el("span", "chip", text);
+  chip.setAttribute("aria-hidden", "true");
+  $("#pipeline").append(chip);
+  const w = chip.offsetWidth;
+  const y = a.top - pipe.top + a.height / 2 - chip.offsetHeight / 2;
+  const x1 = a.left - pipe.left + a.width / 2 - w / 2;
+  const x2 = b.left - pipe.left + b.width / 2 - w / 2;
+  chip.animate([
+    { transform: `translate(${x1}px, ${y}px) scale(.6)`, opacity: 0 },
+    { transform: `translate(${x1 + (x2 - x1) * .15}px, ${y}px) scale(1)`, opacity: 1, offset: .15 },
+    { transform: `translate(${x2}px, ${y}px) scale(.9)`, opacity: 0 },
+  ], { duration: 950, easing: "cubic-bezier(.35,.6,.4,1)" }).onfinish = () => chip.remove();
+}
+
+/* ---------------- métricas ---------------- */
+function tpsText() {
+  if (D.tokens < 2 || !D.tFirst || D.tLast <= D.tFirst) return "—";
+  return ((D.tokens - 1) / ((D.tLast - D.tFirst) / 1000)).toFixed(1) + " tok/s";
+}
+function updateMetrics() {
+  $("#m-in").textContent = D.inputs?.input_ids?.dims?.at(-1) ?? "—";
+  $("#m-ttft").textContent = D.tFirst ? fmtMs(D.tFirst - D.tGen) : D.tGen ? "…" : "—";
+  $("#m-out").textContent = D.tGen ? String(D.tokens) : "—";
+  $("#m-tps").textContent = tpsText();
+  const live = busyPhase();
+  ["#m-ttft", "#m-out", "#m-tps"].forEach((s) => $(s).classList.toggle("is-live", !!live));
+}
+
+/* ---------------- mobile tabs ---------------- */
+function setView(v) {
+  $("#main").dataset.view = v;
+  $("#tab-chat").setAttribute("aria-selected", String(v === "chat"));
+  $("#tab-code").setAttribute("aria-selected", String(v === "code"));
+  if (v === "code") {
+    $("#code-badge").hidden = true;
+    const r = regions[STEPS[current].id];
+    if (r) requestAnimationFrame(() => scrollCodeTo(r.first));
+  }
+}
+$("#tab-chat").addEventListener("click", () => setView("chat"));
+$("#tab-code").addEventListener("click", () => setView("code"));
+
+/* ---------------- ejecución → recorrido ---------------- */
+function execStep(id) {
+  const i = stepIndex[id];
+  stepBtns.forEach((b, j) => b.classList.toggle("running", j === i && busyPhase()));
+  if (follow && i !== current) {
+    goStep(i);
+    if (narrow.matches && $("#main").dataset.view === "chat") $("#code-badge").hidden = false;
+  } else renderLive();
+}
+
+/* ---------------- puente que usa el motor ---------------- */
+let currentBot = null;
+let currentText = null;
+window.ui = {
+  phase: (p) => {
+    D.phase = p;
+    if (p === "ready") D.loadEnd = performance.now();
+    if (PHASE_NODES[p]) setNodes(PHASE_NODES[p]);
+    if (PHASE_STEP[p]) execStep(PHASE_STEP[p]);
+    if (p === "done" || p === "ready") {
+      stepBtns.forEach((b) => b.classList.remove("running"));
+      setNodes(STEPS[current].nodes);
+    }
+    updateMetrics();
+  },
+  progress: (info) => {
+    if (!info || !info.file) return;
+    const key = info.file;
+    let x = D.files.get(key);
+    if (!x) {
+      x = { file: key, loaded: 0, total: 0, status: "en cola", group: D.phase === "processor" ? "processor" : "model" };
+      D.files.set(key, x);
+      if (x.group === "processor") D.procFiles++;
+    }
+    if (info.status === "download") x.status = "descargando";
+    if (info.status === "progress") {
+      x.status = "descargando";
+      if (Number.isFinite(info.loaded)) x.loaded = info.loaded;
+      if (Number.isFinite(info.total)) x.total = info.total;
+    }
+    if (info.status === "done") { x.status = "done"; if (x.total) x.loaded = x.total; }
+    updateLoadBar();
+    if (STEPS[current].id === "model" || STEPS[current].id === "processor") renderLive();
+  },
+  noWebGPU: (reason) => {
+    D.gpu = { ...D.gpu, checked: true, ok: false, reason };
+  },
+  gpuInfo: (adapter) => {
+    const info = adapter.info ?? {};
+    D.gpu = {
+      checked: true, ok: true, reason: "",
+      vendor: info.vendor || "", arch: info.architecture || "", device: info.description || info.device || "",
+      maxBuffer: adapter.limits?.maxBufferSize ?? 0,
+    };
+  },
+  processorReady: (processor) => {
+    D.tokenizer = processor.tokenizer;
+    D.specials = processor.tokenizer?.all_special_tokens ?? [];
+    renderLive();
+  },
+  showPrompt: (prompt) => { D.prompt = prompt; renderLive(); },
+  showInputs: (inputs, tokenizer, route) => {
+    D.inputs = inputs; D.tokenizer = tokenizer; D.route = route;
+    updateMetrics(); renderLive();
+  },
+  token: (ids) => {
+    const now = performance.now();
+    if (!D.tFirst) D.tFirst = now;
+    D.tLast = now;
+    D.tokens += ids.length;
+    let piece = "";
+    try { piece = D.tokenizer.decode(ids.map(Number)); } catch { /* sin texto para el chip */ }
+    flyChip(piece.trim() ? piece : "·");
+    updateMetrics();
+    if (STEPS[current].id === "generate" || STEPS[current].id === "streamer") renderLive();
+  },
+  text: (chunk) => {
+    D.chunks++;
+    D.lastChunk = chunk;
+    if (D.chunks === 1) { D.phase = "streamer"; setNodes(PHASE_NODES.streamer); execStep("streamer"); }
+    if (currentText) {
+      const log = $("#log");
+      const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+      currentText.appendData(chunk);
+      if (nearBottom) log.scrollTop = log.scrollHeight;
+    }
+    renderLive();
+  },
+};
+
+/* ---------------- chat ---------------- */
+const log = $("#log");
+const input = $("#prompt-input");
+let engineReady = false, modelReady = false, busy = false, stopRequested = false, gpuOk = false;
+let retryFn = null;
+
+function setStatus(s, text) {
+  const st = $("#status");
+  st.dataset.s = s;
+  st.textContent = text;
+}
+function updateControls() {
+  const canChat = modelReady && !busy;
+  input.disabled = !modelReady;
+  input.placeholder = modelReady ? "Escribe tu mensaje…" : "Carga el modelo para empezar";
+  $("#send-btn").disabled = !canChat;
+  $("#send-btn").hidden = busy;
+  $("#stop-btn").hidden = !busy;
+  $("#clear-btn").disabled = busy || !log.querySelector(".msg");
+  document.querySelectorAll("#suggest button").forEach((b) => (b.disabled = !canChat));
+  $("#load-btn").disabled = !engineReady || !gpuOk || modelReady || D.phase === "processor" || D.phase === "model";
+}
+function addMsg(role, text) {
+  const m = el("div", "msg " + role);
+  const b = el("div", "bubble");
+  const t = document.createTextNode(text);
+  b.append(t);
+  m.append(b);
+  log.append(m);
+  log.scrollTop = log.scrollHeight;
+  return { m, b, t };
+}
+function autosize() {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 160) + "px";
+}
+input.addEventListener("input", autosize);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+    e.preventDefault();
+    $("#composer").requestSubmit();
+  }
+});
+$("#composer").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = input.value;
+  if (!text.trim() || !modelReady || busy) return;
+  input.value = "";
+  autosize();
+  send(text);
+});
+$("#suggest").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (b && !b.disabled) send(b.textContent);
+});
+$("#stop-btn").addEventListener("click", () => {
+  stopRequested = true;
+  $("#stop-btn").disabled = true;
+  window.gemma?.stop();
+});
+$("#clear-btn").addEventListener("click", () => {
+  window.gemma?.clearChat();
+  D.turns = 0;
+  log.querySelectorAll(".msg").forEach((m) => m.remove());
+  $("#intro").hidden = false;
+  hideError();
+  updateControls();
+  renderLive();
+});
+
+async function send(text) {
+  hideError();
+  $("#intro").hidden = true;
+  const user = addMsg("user", text);
+  const bot = addMsg("bot", "");
+  bot.m.classList.add("streaming");
+  currentBot = bot; currentText = bot.t;
+  Object.assign(D, { tokens: 0, chunks: 0, lastChunk: "", tGen: 0, tFirst: 0, tLast: 0, stopReason: "", sample: $("#sample").checked });
+  busy = true; stopRequested = false;
+  $("#stop-btn").disabled = false;
+  updateControls();
+  setStatus("generating", "Generando…");
+  try {
+    const reply = await window.gemma.ask(text, { sample: D.sample });
+    D.turns += 2;
+    D.stopReason = stopRequested ? "lo detuviste tú" : D.tokens >= 512 ? "llegó al límite de 512 tokens" : "token de fin de turno";
+    bot.m.classList.remove("streaming");
+    if (!reply.trim()) bot.t.data = stopRequested ? "(detenido antes de escribir)" : "(respuesta vacía)";
+    const meta = el("div", "meta", `${D.tokens} tokens · ${tpsText()}${stopRequested ? " · detenido" : ""}`);
+    bot.m.append(meta);
+    setStatus("ready", "Modelo listo");
+    storageEstimate();
+  } catch (err) {
+    bot.m.remove();
+    user.m.classList.add("failed");
+    user.m.append(el("div", "meta", "no se envió"));
+    window.ui.phase("done");
+    showError(err, () => { user.m.remove(); send(text); });
+    setStatus("error", "Error al generar");
+  } finally {
+    busy = false; currentBot = null; currentText = null;
+    updateControls(); updateMetrics(); renderLive();
+    if (!narrow.matches) input.focus();
+  }
+}
+// El inicio real de generate se marca cuando el motor anuncia la fase "generate".
+{
+  const phase = window.ui.phase;
+  window.ui.phase = (p) => {
+    if (p === "generate") D.tGen = performance.now();
+    phase(p);
+  };
+}
+
+/* ---------------- errores ---------------- */
+function classify(err) {
+  const msg = String(err?.message ?? err ?? "");
+  if (/out of memory|oom|allocat|device (was )?lost|exceed|memory/i.test(msg))
+    return ["La GPU se quedó sin memoria.", "Cierra otras pestañas o apps que usen la GPU y vuelve a intentarlo. Si pasa siempre, tu GPU no tiene VRAM suficiente para este modelo."];
+  if (/fetch|network|load failed|err_|cors|refused|blocked|offline/i.test(msg))
+    return ["No se pudieron descargar los archivos.", "Revisa tu conexión. Si la red está bien, el sitio que aloja esta página puede estar bloqueando descargas desde huggingface.co; en ese caso abre el HTML desde tu propio servidor o en local."];
+  if (/webgpu|adapter|gpu/i.test(msg))
+    return ["WebGPU no está disponible.", "Usa Chrome o Edge 113 o superior con aceleración por hardware activada."];
+  return ["Algo falló.", "Puedes reintentar; si se repite, recarga la página."];
+}
+function showError(err, retry) {
+  const [title, text] = classify(err);
+  $("#err-title").textContent = title;
+  $("#err-text").textContent = text;
+  $("#err-detail").textContent = String(err?.stack || err?.message || err);
+  retryFn = retry;
+  $("#retry-btn").hidden = !retry;
+  $("#errorbox").hidden = false;
+}
+function hideError() { $("#errorbox").hidden = true; retryFn = null; }
+$("#retry-btn").addEventListener("click", () => { const f = retryFn; hideError(); f?.(); });
+
+/* ---------------- carga ---------------- */
+function updateLoadBar() {
+  const files = [...D.files.values()];
+  const loaded = files.reduce((a, x) => a + (x.loaded || 0), 0);
+  const total = files.reduce((a, x) => a + (x.total || 0), 0);
+  const pct = total ? (loaded / total) * 100 : 0;
+  $("#load-bar i").style.width = pct.toFixed(1) + "%";
+  $("#load-bar").setAttribute("aria-valuenow", pct.toFixed(0));
+  const doing = files.filter((x) => x.status === "descargando").length;
+  $("#load-meta").textContent = total
+    ? `${fmtBytes(loaded)} de ${fmtBytes(total)} conocidos · ${files.filter((x) => x.status === "done").length}/${files.length} archivos${doing ? ` · ${doing} en curso` : ""}`
+    : "Esperando el primer archivo…";
+}
+async function storageEstimate() {
+  try { D.storage = await navigator.storage?.estimate?.(); } catch { D.storage = null; }
+  renderLive();
+}
+async function load() {
+  hideError();
+  D.files.clear(); D.procFiles = 0; D.loadStart = performance.now(); D.loadEnd = 0;
+  try { D.cacheBefore = await caches.has("transformers-cache"); } catch { D.cacheBefore = null; }
+  $("#load-progress").hidden = false;
+  setStatus("loading", "Descargando el modelo…");
+  D.phase = "processor";
+  updateControls();
+  try {
+    await window.gemma.loadModel();
+    modelReady = true;
+    $("#loadcard").hidden = true;
+    setStatus("ready", "Modelo listo");
+    updateLoadBar();
+    storageEstimate();
+    if (!narrow.matches) input.focus();
+  } catch (err) {
+    D.phase = "idle";
+    setStatus("error", "Falló la carga");
+    showError(err, load);
+  } finally {
+    updateControls(); renderLive();
+  }
+}
+$("#load-btn").addEventListener("click", load);
+
+/* ---------------- arranque del motor ---------------- */
+async function onEngine() {
+  if (engineReady) return;
+  engineReady = true;
+  clearTimeout(bootTimer);
+  D.engine = "ok";
+  hideError();
+  try { gpuOk = await window.gemma.checkGPU(); }
+  catch (err) { gpuOk = false; window.ui.noWebGPU("requestAdapter() falló: " + (err?.message || err)); }
+  if (gpuOk) {
+    $("#gpu-note").textContent = "WebGPU disponible. Cuando quieras.";
+    setStatus("idle", "Modelo sin cargar");
+  } else {
+    $("#gpu-note").textContent = `Tu navegador no puede ejecutar este demo: ${D.gpu.reason}. Ábrelo en Chrome o Edge 113+ con aceleración por hardware.`;
+    setStatus("nogpu", "Sin WebGPU");
+  }
+  updateControls();
+  renderLive();
+}
+function engineFailed(reason) {
+  if (engineReady) return;
+  D.engine = "error";
+  setStatus("error", "No cargó el motor");
+  $("#gpu-note").textContent = "No se pudo importar Transformers.js desde cdn.jsdelivr.net.";
+  // un import fallido queda cacheado en el mapa de módulos del documento: reintentar = recargar
+  showError(new Error(reason), () => location.reload());
+  renderLive();
+}
+let bootTimer = 0;
+function armTimeout() {
+  clearTimeout(bootTimer);
+  bootTimer = setTimeout(() => { if (!window.gemma) engineFailed("network: el módulo tardó demasiado en llegar"); }, 30000);
+}
+document.addEventListener("gemma:ready", onEngine);
+$("#engine").addEventListener("error", () => engineFailed("network: no se pudo importar el módulo"));
+armTimeout();
+
+goStep(0, { scroll: false });
+updateControls();
+updateMetrics();
+</script>
+
+<!-- ==================== Motor (este texto es el que ves en el panel de código) ==================== -->
+<script type="module" id="engine">
+// ▸ paso 2 · imports y MODEL_ID
+import {
+  AutoProcessor,
+  Gemma4ForConditionalGeneration,
+  TextStreamer,
+  InterruptableStoppingCriteria,
+} from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/dist/transformers.min.js";
+
+const MODEL_ID = "onnx-community/gemma-4-E2B-it-ONNX";
+const ui = window.ui; // puente hacia la interfaz: barras, globos y métricas
+
+// ▸ paso 1 · ¿hay GPU?
+async function checkGPU() {
+  if (!navigator.gpu) {
+    ui.noWebGPU("el navegador no expone navigator.gpu");
+    return false;
+  }
+  const adapter = await navigator.gpu.requestAdapter();
+  if (!adapter) {
+    ui.noWebGPU("hay WebGPU, pero no apareció ningún adaptador de GPU");
+    return false;
+  }
+  ui.gpuInfo(adapter);
+  return true;
+}
+
+// ▸ paso 3 · el procesador
+let processor, model;
+
+async function loadModel() {
+  ui.phase("processor");
+  processor = await AutoProcessor.from_pretrained(MODEL_ID, {
+    progress_callback: ui.progress,
+  });
+  ui.processorReady(processor);
+
+  // ▸ paso 4 · cargar el modelo
+  ui.phase("model");
+  model = await Gemma4ForConditionalGeneration.from_pretrained(MODEL_ID, {
+    dtype: "q4f16",
+    device: "webgpu",
+    progress_callback: ui.progress,
+  });
+  ui.phase("ready");
+}
+
+// ▸ paso 5 · la plantilla de chat
+const messages = [];
+const stopper = new InterruptableStoppingCriteria();
+
+async function ask(userText, { sample = false } = {}) {
+  ui.phase("template");
+  const userMsg = { role: "user", content: [{ type: "text", text: userText }] };
+  const prompt = processor.apply_chat_template([...messages, userMsg], {
+    enable_thinking: false,
+    add_generation_prompt: true,
+  });
+  ui.showPrompt(prompt);
+
+  // ▸ paso 6 · de texto a tensores
+  ui.phase("inputs");
+  let inputs;
+  let route = "processor";
+  try {
+    inputs = await processor(prompt, null, null, { add_special_tokens: false });
+  } catch {
+    // plan B: como solo hay texto, vamos directo al tokenizer
+    route = "tokenizer";
+    inputs = processor.tokenizer(prompt, { add_special_tokens: false });
+  }
+  ui.showInputs(inputs, processor.tokenizer, route);
+
+  // ▸ paso 8 · el TextStreamer
+  let reply = "";
+  const streamer = new TextStreamer(processor.tokenizer, {
+    skip_prompt: true,
+    skip_special_tokens: true,
+    token_callback_function: (ids) => ui.token(ids),
+    callback_function: (text) => {
+      reply += text;
+      ui.text(text);
+    },
+  });
+
+  // ▸ paso 7 · generate, token a token
+  ui.phase("generate");
+  stopper.reset();
+  await model.generate({
+    ...inputs,
+    max_new_tokens: 512,
+    do_sample: sample,
+    ...(sample ? { temperature: 0.7, top_k: 50 } : {}),
+    stopping_criteria: stopper,
+    streamer,
+  });
+
+  // ▸ paso 9 · lo que queda en el navegador
+  messages.push(userMsg, { role: "assistant", content: [{ type: "text", text: reply }] });
+  ui.phase("done");
+  return reply;
+}
+
+function stop() {
+  stopper.interrupt();
+}
+
+function clearChat() {
+  messages.length = 0;
+}
+
+// ▸ interfaz: expone el motor a los botones
+window.gemma = { checkGPU, loadModel, ask, stop, clearChat };
+document.dispatchEvent(new Event("gemma:ready"));
+</script>
