@@ -1031,7 +1031,14 @@ const LIVE = {
       ["Turnos guardados en messages", String(D.turns)],
       ["Caché del modelo", D.loadEnd ? "en Cache Storage del navegador" : "todavía no descargado"],
     ];
-    if (D.storage) rows.push(["Almacenamiento del sitio", `${fmtBytes(D.storage.usage)} usados de ${fmtBytes(D.storage.quota)} disponibles`]);
+    if (D.storage) {
+      // La cuota es un tope aproximado que el navegador le da al sitio, no el espacio libre del disco.
+      // En iframes aislados puede salir menor que lo usado, así que solo se muestra si tiene sentido.
+      const usage = D.storage.usage ?? 0, quota = D.storage.quota ?? 0;
+      rows.push(["Guardado por este sitio", quota > usage
+        ? `${fmtBytes(usage)} · tope del navegador ≈ ${fmtBytes(quota)}`
+        : `${fmtBytes(usage)} (modelo en caché y archivos del motor)`]);
+    }
     return kv(rows);
   },
 };
