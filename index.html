@@ -485,6 +485,7 @@ main { flex: 1 1 0; display: grid; grid-template-columns: minmax(330px, .82fr) m
 .tok.special { border-color: var(--s-ui); background: var(--ctl-bg); }
 .tok.special b { color: var(--s-ui); }
 .note { margin: 8px 0 0; font-size: .82rem; color: var(--muted); max-width: 64ch; }
+.note.diag { padding-left: 1.2em; display: grid; gap: 6px; }
 
 .legend { border-top: 1px solid var(--line); padding: 8px 16px; font-size: .78rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .legend code { color: var(--s-ui); }
@@ -726,7 +727,7 @@ applyTheme();
 /* ---------------- datos reales de la ejecución ---------------- */
 const D = {
   engine: "pending", engineError: null,
-  gpu: { checked: false, ok: null, reason: "", vendor: "", arch: "", device: "", maxBuffer: 0 },
+  gpu: { checked: false, ok: null, reason: "", vendor: "", arch: "", device: "", maxBuffer: 0, f16: null, diag: [] },
   files: new Map(), loadStart: 0, loadEnd: 0, cacheBefore: null, procFiles: 0,
   specials: [],
   prompt: "", route: "", inputs: null, tokenizer: null,
@@ -738,7 +739,7 @@ const D = {
 const STEPS = [
   { id: "gpu", title: "¿Hay GPU?", short: "¿Hay GPU?", nodes: ["gpu"], body: [
     "Antes de bajar un solo byte, la página pregunta si el navegador expone WebGPU con `navigator.gpu`. Si existe, pide un adaptador: la GPU concreta que se va a usar.",
-    "Sin adaptador no hay dónde ejecutar el modelo, así que el botón de carga se queda apagado y te lo decimos. WebGPU está disponible en Chrome y Edge desde la versión 113.",
+    "Sin adaptador no hay dónde ejecutar el modelo, así que el botón de carga se queda apagado y te lo decimos. WebGPU está disponible en Chrome y Edge desde la versión 113. Si falla, la página intenta decirte por qué: versión del navegador, contexto no seguro, aceleración por hardware apagada o una GPU que solo existe por software.",
   ] },
   { id: "imports", title: "Imports y MODEL_ID", short: "Imports", nodes: ["js"], body: [
     "Todo el motor llega como un módulo ES desde un CDN. Transformers.js aporta el tokenizer, la plantilla de chat y el bucle de generación; por debajo usa ONNX Runtime Web para ejecutar el grafo del modelo.",
@@ -942,10 +943,17 @@ const LIVE = {
       if (g.arch) rows.push(["Arquitectura", g.arch]);
       if (g.device) rows.push(["Dispositivo", g.device]);
       if (g.maxBuffer) rows.push(["maxBufferSize", fmtBytes(g.maxBuffer)]);
+      if (g.f16 !== null) rows.push(["Cálculo en 16 bits (shader-f16)", g.f16 ? "sí" : "no"]);
     } else rows.push(["Motivo", g.reason]);
     const f = document.createDocumentFragment();
     f.append(kv(rows));
     if (g.ok && !g.vendor) f.append(el("p", "note", "El navegador no comparte el nombre de la GPU; es normal por privacidad."));
+    if (g.ok && g.f16 === false) f.append(el("p", "note", "Esta GPU no declara shader-f16. El formato q4f16 normalmente lo necesita, así que la carga del modelo podría fallar."));
+    if (!g.ok && g.diag.length) {
+      const ul = el("ul", "note diag");
+      g.diag.forEach((t) => ul.append(el("li", "", t)));
+      f.append(el("p", "note", "Qué puede estar pasando:"), ul);
+    }
     return f;
   },
   imports() {
@@ -1210,6 +1218,8 @@ window.ui = {
       checked: true, ok: true, reason: "",
       vendor: info.vendor || "", arch: info.architecture || "", device: info.description || info.device || "",
       maxBuffer: adapter.limits?.maxBufferSize ?? 0,
+      f16: adapter.features?.has?.("shader-f16") ?? null,
+      diag: [],
     };
   },
   processorReady: (processor) => {
@@ -1475,6 +1485,31 @@ async function load() {
 }
 $("#load-btn").addEventListener("click", load);
 
+/* ---------------- diagnóstico de GPU ---------------- */
+// Solo interfaz: explica por qué no hay GPU a partir de lo que el navegador deja ver.
+// Son pistas, no certezas: el navegador no dice la causa exacta.
+async function diagnoseGPU() {
+  const tips = [];
+  const m = /Chrom(?:e|ium)\/(\d+)/.exec(navigator.userAgent);
+  const isChromium = !!m, ver = m ? Number(m[1]) : 0;
+  const inFrame = window.top !== window;
+  if (!window.isSecureContext)
+    tips.push("La página no está en un contexto seguro. WebGPU solo funciona con HTTPS, localhost o un archivo abierto en local.");
+  if (!navigator.gpu) {
+    if (!isChromium) tips.push("Este navegador no parece ser Chrome ni Edge. El soporte de WebGPU depende de la versión y del sistema; prueba con Chrome o Edge 113 o superior.");
+    else if (ver < 113) tips.push(`Tu navegador es la versión ${ver} de Chrome/Edge y WebGPU llegó en la 113. Actualízalo.`);
+    else if (inFrame) tips.push("La página corre dentro de un marco (iframe) y el sitio que la aloja podría estar limitando el acceso a la GPU. Abre el HTML directamente en una pestaña.");
+    else tips.push("Tu navegador es reciente, así que revisa chrome://flags (busca WebGPU) y chrome://gpu (edge://gpu en Edge).");
+  } else {
+    let software = null;
+    try { software = await navigator.gpu.requestAdapter({ forceFallbackAdapter: true }); } catch { /* sin adaptador por software */ }
+    if (software) tips.push("Solo hay un adaptador por software: el navegador no puede usar la GPU real. Suele pasar con la aceleración por hardware apagada, un driver bloqueado, o en una máquina virtual o escritorio remoto.");
+    else tips.push("Revisa que la aceleración por hardware esté activa en la configuración del navegador y mira chrome://gpu (edge://gpu en Edge).");
+    if (inFrame) tips.push("La página está dentro de un iframe; si abres el HTML directamente en una pestaña descartas que el sitio anfitrión esté limitando la GPU.");
+  }
+  return tips;
+}
+
 /* ---------------- arranque del motor ---------------- */
 async function onEngine() {
   if (engineReady) return;
@@ -1485,10 +1520,13 @@ async function onEngine() {
   try { gpuOk = await window.gemma.checkGPU(); }
   catch (err) { gpuOk = false; window.ui.noWebGPU("requestAdapter() falló: " + (err?.message || err)); }
   if (gpuOk) {
-    $("#gpu-note").textContent = "WebGPU disponible. Cuando quieras.";
+    $("#gpu-note").textContent = D.gpu.f16 === false
+      ? "WebGPU disponible, pero tu GPU no declara shader-f16 y la carga del modelo podría fallar. Puedes intentarlo igual."
+      : "WebGPU disponible. Cuando quieras.";
     setStatus("idle", "Modelo sin cargar");
   } else {
-    $("#gpu-note").textContent = `Tu navegador no puede ejecutar este demo: ${D.gpu.reason}. Ábrelo en Chrome o Edge 113+ con aceleración por hardware.`;
+    try { D.gpu.diag = await diagnoseGPU(); } catch { D.gpu.diag = []; }
+    $("#gpu-note").textContent = `Tu navegador no puede ejecutar este demo: ${D.gpu.reason}. ${D.gpu.diag[0] ?? "Ábrelo en Chrome o Edge 113+ con aceleración por hardware."}`;
     setStatus("nogpu", "Sin WebGPU");
   }
   updateControls();
