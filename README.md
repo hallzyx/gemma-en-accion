@@ -12,4 +12,16 @@ Demo de un chatbot que corre **Gemma 4 (E2B, ONNX)** dentro del navegador con **
 
 - Modelo: `onnx-community/gemma-4-E2B-it-ONNX` (`dtype: "q4f16"`, `device: "webgpu"`)
 - Librería: `@huggingface/transformers@4.3.0` desde jsDelivr
-- Un solo archivo, sin build.
+- Sin build: `index.html` es la app; `sw.js`, `manifest.webmanifest` y los íconos son para el modo avión.
+
+## Modo avión
+
+Una vez preparado, el demo abre y responde sin conexión:
+
+1. Abre la página **con internet** desde HTTPS, `localhost` o GitHub Pages (los service workers no funcionan en `file://` ni dentro de visores aislados).
+2. Pulsa **Cargar modelo** y espera a que termine. El indicador de la cabecera pasa a «Listo para modo avión».
+3. Activa el modo avión y recarga: la página, las librerías y el modelo salen de la caché del navegador.
+
+Cómo funciona: `sw.js` guarda la página y las librerías (jsDelivr y Google Fonts); el modelo y el runtime de ONNX los guarda Transformers.js en Cache Storage. Los archivos chicos y opcionales que no existen en el repo del modelo se devuelven como 404 sin red, para que la carga desde caché no se rompa.
+
+Si cambias `index.html`, sube el número de `CACHE` en `sw.js` para que los visitantes reciban la versión nueva. También se puede instalar como app desde el menú del navegador.
