@@ -1,6 +1,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gemma en acción</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12141a">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&display=swap">
@@ -173,7 +176,7 @@ kbd { padding: 0 5px; border: 1px solid var(--line-strong); border-radius: 6px; 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; }
 .mark { display: inline-flex; align-items: center; gap: 9px; font-weight: 500; font-size: 1rem; color: var(--hero-ink); letter-spacing: -.01em; }
 .mark svg { width: 18px; height: 18px; flex: none; }
-.top-actions { display: flex; gap: 8px; align-items: center; }
+.top-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 
 /* ---------- hero ---------- */
 .hero {
@@ -567,6 +570,7 @@ main { flex: 1 1 0; display: grid; grid-template-columns: minmax(330px, .82fr) m
   <header class="top">
     <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#spark" fill="url(#spark-grad)"/></svg>Demo de inferencia local</span>
     <div class="top-actions">
+      <span class="status" id="offline" data-s="boot" role="status">Modo avión: comprobando…</span>
       <button class="btn small ghost" id="theme-btn" type="button" aria-label="Cambiar tema">Tema: sistema</button>
     </div>
   </header>
@@ -780,6 +784,7 @@ const STEPS = [
     "Todo ocurrió en tu máquina: lo que escribes no se envía a ningún servidor. Lo único que viajó por la red fueron los archivos del modelo.",
     "Los pesos quedan en la caché del navegador (se borran desde los datos del sitio) y el historial vive en el arreglo `messages`, que desaparece al recargar. Limpiar la conversación lo vacía.",
     "Los límites son reales: necesitas una GPU con VRAM suficiente, la primera descarga es grande y el primer arranque tarda más porque la GPU prepara sus programas. Si la memoria no alcanza, verás un error y no una respuesta a medias.",
+    "Modo avión: si abres la página una vez con conexión y cargas el modelo, un service worker (`sw.js`) guarda la página y las librerías, y el modelo ya está en Cache Storage. Desde entonces todo funciona sin red. Requiere abrir la página desde HTTPS, localhost o GitHub Pages, no dentro de un visor aislado.",
   ] },
 ];
 const stepIndex = Object.fromEntries(STEPS.map((s, i) => [s.id, i]));
@@ -1038,6 +1043,7 @@ const LIVE = {
     const rows = [
       ["Turnos guardados en messages", String(D.turns)],
       ["Caché del modelo", D.loadEnd ? "en Cache Storage del navegador" : "todavía no descargado"],
+      ["Modo avión", offlineText()],
     ];
     if (D.storage) {
       // La cuota es un tope aproximado que el navegador le da al sitio, no el espacio libre del disco.
@@ -1474,6 +1480,7 @@ async function load() {
     setStatus("ready", "Modelo listo");
     updateLoadBar();
     storageEstimate();
+    offlineAfterLoad();
     if (!narrow.matches) input.focus();
   } catch (err) {
     D.phase = "idle";
@@ -1484,6 +1491,85 @@ async function load() {
   }
 }
 $("#load-btn").addEventListener("click", load);
+
+/* ---------------- modo avión ---------------- */
+// El service worker (sw.js) guarda la página y las librerías; Transformers.js guarda el modelo en
+// Cache Storage. Esta parte solo muestra el estado: no forma parte del código del motor.
+const SW_CACHE = "gemma-en-accion-v1";
+const MODEL_FLAG = "gemma-en-accion:model-cached";
+D.offline = { supported: "serviceWorker" in navigator, registered: false, controlled: false, libs: false, model: false, reason: "" };
+const offlinePill = $("#offline");
+
+async function checkOfflineCaches() {
+  const o = D.offline;
+  try { o.libs = (await caches.has(SW_CACHE)) && (await (await caches.open(SW_CACHE)).keys()).some((r) => r.url.includes("transformers")); }
+  catch { o.libs = false; }
+  let flag = false;
+  try { flag = localStorage.getItem(MODEL_FLAG) === "1"; } catch { /* sin almacenamiento local */ }
+  try {
+    // caches.has antes de open: abrir una caché que no existe la crearía vacía.
+    const has = await caches.has("transformers-cache");
+    o.model = flag && has && (await (await caches.open("transformers-cache")).keys()).some((r) => r.url.includes("gemma-4-E2B-it-ONNX") && /\.onnx/.test(r.url));
+  } catch { o.model = false; }
+}
+async function updateOffline() {
+  const o = D.offline;
+  await checkOfflineCaches();
+  o.controlled = !!navigator.serviceWorker?.controller;
+  let s, text, tip = "";
+  if (!o.supported || (!o.registered && o.reason)) {
+    s = "nogpu"; text = "Modo avión no disponible aquí";
+    tip = o.reason || "Este navegador o contexto no permite service workers.";
+  } else if (!o.registered || !o.controlled || !o.libs) {
+    s = "loading"; text = "Guardando la app…";
+    tip = "Si no avanza, recarga la página una vez para que el service worker tome el control.";
+  } else if (!o.model) {
+    s = "nogpu"; text = "Falta cargar el modelo";
+    tip = "Pulsa «Cargar modelo» una vez con conexión (si ya estaba descargado, termina en segundos) y quedará listo.";
+  } else {
+    s = "ready"; text = "Listo para modo avión";
+    tip = "La página, las librerías y el modelo están guardados en este navegador.";
+  }
+  if (!navigator.onLine) text = "Sin conexión · " + text;
+  offlinePill.dataset.s = s;
+  offlinePill.textContent = text;
+  offlinePill.title = tip;
+  renderLive();
+}
+function offlineText() {
+  const o = D.offline;
+  if (!o) return "comprobando…";
+  if (!o.supported || (!o.registered && o.reason)) return "no disponible aquí (sin service worker)";
+  return `${o.controlled && o.libs ? "app guardada" : "app sin guardar"} · modelo ${o.model ? "en caché" : "sin cargar"}`;
+}
+function warmOffline() {
+  const sw = navigator.serviceWorker?.controller;
+  if (!sw) return;
+  sw.postMessage({ type: "warm", urls: performance.getEntriesByType("resource").map((e) => e.name) });
+}
+function offlineAfterLoad() {
+  try { localStorage.setItem(MODEL_FLAG, "1"); } catch { /* sin almacenamiento local */ }
+  warmOffline(); // guarda también el wasm de ONNX Runtime que se pidió al cargar el modelo
+  setTimeout(updateOffline, 1500);
+}
+async function initOffline() {
+  const o = D.offline;
+  if (!o.supported) { o.reason = "Este navegador o contexto no permite service workers."; return updateOffline(); }
+  navigator.serviceWorker.addEventListener("controllerchange", () => { warmOffline(); setTimeout(updateOffline, 2500); });
+  try {
+    await navigator.serviceWorker.register("./sw.js");
+    await navigator.serviceWorker.ready;
+    o.registered = true;
+    warmOffline();
+  } catch (err) {
+    o.reason = `No se pudo registrar el service worker (${err?.message || err}). Abre la página desde HTTPS, localhost o GitHub Pages, fuera de un visor aislado.`;
+  }
+  updateOffline();
+  setTimeout(updateOffline, 2500);
+}
+addEventListener("online", updateOffline);
+addEventListener("offline", updateOffline);
+initOffline();
 
 /* ---------------- diagnóstico de GPU ---------------- */
 // Solo interfaz: explica por qué no hay GPU a partir de lo que el navegador deja ver.
