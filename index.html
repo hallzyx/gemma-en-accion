@@ -570,7 +570,6 @@ main { flex: 1 1 0; display: grid; grid-template-columns: minmax(330px, .82fr) m
   <header class="top">
     <span class="mark"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#spark" fill="url(#spark-grad)"/></svg>Demo de inferencia local</span>
     <div class="top-actions">
-      <span class="status" id="offline" data-s="boot" role="status">Modo avión: comprobando…</span>
       <button class="btn small ghost" id="theme-btn" type="button" aria-label="Cambiar tema">Tema: sistema</button>
     </div>
   </header>
@@ -1498,7 +1497,6 @@ $("#load-btn").addEventListener("click", load);
 const SW_CACHE = "gemma-en-accion-v1";
 const MODEL_FLAG = "gemma-en-accion:model-cached";
 D.offline = { supported: "serviceWorker" in navigator, registered: false, controlled: false, libs: false, model: false, reason: "" };
-const offlinePill = $("#offline");
 
 async function checkOfflineCaches() {
   const o = D.offline;
@@ -1516,25 +1514,7 @@ async function updateOffline() {
   const o = D.offline;
   await checkOfflineCaches();
   o.controlled = !!navigator.serviceWorker?.controller;
-  let s, text, tip = "";
-  if (!o.supported || (!o.registered && o.reason)) {
-    s = "nogpu"; text = "Modo avión no disponible aquí";
-    tip = o.reason || "Este navegador o contexto no permite service workers.";
-  } else if (!o.registered || !o.controlled || !o.libs) {
-    s = "loading"; text = "Guardando la app…";
-    tip = "Si no avanza, recarga la página una vez para que el service worker tome el control.";
-  } else if (!o.model) {
-    s = "nogpu"; text = "Falta cargar el modelo";
-    tip = "Pulsa «Cargar modelo» una vez con conexión (si ya estaba descargado, termina en segundos) y quedará listo.";
-  } else {
-    s = "ready"; text = "Listo para modo avión";
-    tip = "La página, las librerías y el modelo están guardados en este navegador.";
-  }
-  if (!navigator.onLine) text = "Sin conexión · " + text;
-  offlinePill.dataset.s = s;
-  offlinePill.textContent = text;
-  offlinePill.title = tip;
-  renderLive();
+  renderLive(); // el estado se muestra en la fila "Modo avión" del paso Cierre
 }
 function offlineText() {
   const o = D.offline;
